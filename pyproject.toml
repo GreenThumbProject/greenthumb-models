@@ -1,0 +1,25 @@
+[project]
+name = "greenthumb-models"
+version = "0.1.0"
+description = "Shared SQLModel table definitions and Pydantic DTOs for GreenThumb"
+requires-python = ">=3.11"
+dependencies = [
+    "utils @ git+https://github.com/henriquebrnetto/utils.git",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+# FastAPI support (includes utils[api])
+api = [
+    "utils[api] @ git+https://github.com/henriquebrnetto/utils.git",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/greenthumb_models"]
