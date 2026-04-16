@@ -695,7 +695,7 @@ class Photo(SQLModel, table=True):
 
     device:          Optional[Device]         = Relationship(back_populates="photos")
     device_actuator: Optional[DeviceActuator] = Relationship(back_populates="photos")
-    cultivation:     Optional[Cultivation]    = Relationship(back_populates="cultivation")
+    cultivation:     Optional[Cultivation]    = Relationship(back_populates="photos")
 
 
 class PhotoBase(SQLModel):
