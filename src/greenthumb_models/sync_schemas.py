@@ -62,6 +62,8 @@ class ActuatorConfig(BaseModel):
     # Used to look up the correct class in ACTUATOR_REGISTRY
     # e.g. "3PIN RGB LED", "WebCam Redragon Hitman"
     model_name:         str
+    # Human-readable label from device_actuator.name (e.g. "Greenhouse Camera")
+    name:               Optional[str] = None
     # Instance-specific config (GPIO pins, camera source, etc.)
     instance_config:    Dict[str, Any]
     # Model-level specs shared by all instances of this model
