@@ -318,6 +318,9 @@ class Device(SQLModel, table=True):
     updated_at:   Optional[datetime]   = Field(default_factory=datetime.now, description="Updated by DB trigger on every write")
     if not IS_CLOUD:
         is_dirty:     bool                 = Field(default=False, description="True when device_mode was changed locally and not yet synced")
+    if IS_CLOUD:
+        last_seen_at: Optional[datetime]   = Field(default=None, description="Timestamp of last successful sync from Pi")
+        tailscale_ip: Optional[str]        = Field(default=None, description="Pi Tailscale IP for direct local dashboard access")
 
     # Relationships
     user:             Optional["AppUser"]       = Relationship(back_populates="devices")
@@ -345,8 +348,11 @@ class DeviceRead(DeviceBase):
     updated_at: Optional[datetime] = None
 
 class DeviceAdminRead(DeviceRead):
-    """Admin-only read schema that includes the device bearer token."""
-    device_token: Optional[str] = None
+    """Admin-only read schema — includes bearer token and cloud-only fields."""
+    device_token: Optional[str]      = None
+    if IS_CLOUD:
+        last_seen_at: Optional[datetime] = None
+        tailscale_ip: Optional[str]      = None
 
 class DeviceAdminUpdate(SQLModel):
     name:        Optional[str]       = None
@@ -354,6 +360,8 @@ class DeviceAdminUpdate(SQLModel):
     location:    Optional[str]       = None
     device_mode: Optional[DeviceMode] = None
     id_user:     Optional[uuid.UUID]  = None
+    if IS_CLOUD:
+        tailscale_ip: Optional[str]  = None
 
 class DeviceUpdate(DeviceAdminUpdate):
     if not IS_CLOUD:
