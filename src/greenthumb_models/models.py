@@ -24,6 +24,13 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy import JSON
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import SQLModel, Field, Relationship
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+IS_CLOUD = os.getenv("IS_CLOUD")
+
 
 
 # =============================================================================
@@ -309,7 +316,8 @@ class Device(SQLModel, table=True):
     device_token: Optional[str]        = Field(default=None, description="Cloud API bearer token for this device")
     created_at:   Optional[datetime]   = Field(default_factory=datetime.now)
     updated_at:   Optional[datetime]   = Field(default_factory=datetime.now, description="Updated by DB trigger on every write")
-    is_dirty:     bool                 = Field(default=False, description="True when device_mode was changed locally and not yet synced")
+    if not IS_CLOUD:
+        is_dirty:     bool                 = Field(default=False, description="True when device_mode was changed locally and not yet synced")
 
     # Relationships
     user:             Optional["AppUser"]       = Relationship(back_populates="devices")
@@ -327,7 +335,8 @@ class DeviceBase(SQLModel):
     id_user:     Optional[uuid.UUID]  = None
 
 class DeviceCreate(DeviceBase):
-    pass
+    if not IS_CLOUD:
+        is_dirty: Optional[bool] = False
 
 class DeviceRead(DeviceBase):
     """Device read schema — device_token is intentionally excluded."""
@@ -339,13 +348,16 @@ class DeviceAdminRead(DeviceRead):
     """Admin-only read schema that includes the device bearer token."""
     device_token: Optional[str] = None
 
-class DeviceUpdate(SQLModel):
+class DeviceAdminUpdate(SQLModel):
     name:        Optional[str]       = None
     mac_address: Optional[str]       = None
     location:    Optional[str]       = None
     device_mode: Optional[DeviceMode] = None
     id_user:     Optional[uuid.UUID]  = None
-    is_dirty:    Optional[bool]       = None
+
+class DeviceUpdate(DeviceAdminUpdate):
+    if not IS_CLOUD:
+        is_dirty:    Optional[bool]       = None
 
 
 # -------------------- DEVICE SENSOR --------------------
@@ -498,7 +510,7 @@ class CultivationBase(SQLModel):
     id_plant_species: int
     start_date:       datetime       = Field(default_factory=datetime.now)
     end_date:         Optional[datetime] = None
-    notes:            Optional[str]  = None
+    notes:            Optional[str]  = Field(default=None)
 
 class CultivationCreate(CultivationBase):
     pass
@@ -542,7 +554,8 @@ class Threshold(SQLModel, table=True):
     id_actuator_action: Optional[int]  = Field(default=None, foreign_key="device_actuator.id_device_actuator", description="NULL = monitoring-only")
     is_active:         bool            = Field(default=True)
     updated_at:        Optional[datetime] = Field(default_factory=datetime.now)
-    is_dirty:          bool            = Field(default=False, description="True when a Pi-mutable field was changed locally and not yet synced")
+    if not IS_CLOUD:
+        is_dirty:          bool            = Field(default=False, description="True when a Pi-mutable field was changed locally and not yet synced")
 
     cultivation:    Optional[Cultivation]    = Relationship(back_populates="thresholds")
     variable:       Optional[Variable]       = Relationship()
@@ -561,7 +574,8 @@ class ThresholdBase(SQLModel):
     is_active:          bool            = True
 
 class ThresholdCreate(ThresholdBase):
-    pass
+    if not IS_CLOUD:
+        is_dirty: Optional[bool] = False
 
 class ThresholdRead(ThresholdBase):
     id_threshold: int
@@ -576,6 +590,8 @@ class ThresholdUpdate(SQLModel):
     target_value:       Optional[float] = None
     id_actuator_action: Optional[int]   = None
     is_active:          Optional[bool]  = None
+    if not IS_CLOUD:
+        is_dirty: Optional[bool] = None
 
 
 # =============================================================================
@@ -596,7 +612,8 @@ class Measurement(SQLModel, table=True):
     value:            float          = Field(description="Numeric reading value")
     id_device_sensor: int            = Field(foreign_key="device_sensor.id_device_sensor")
     id_variable:      int            = Field(foreign_key="variable.id_variable")
-    is_synced:        bool           = Field(default=False, description="False until pushed to Cloud")
+    if not IS_CLOUD:
+        is_synced:        bool           = Field(default=False, description="False until pushed to Cloud")
 
     device_sensor: Optional[DeviceSensor] = Relationship(back_populates="measurements")
     variable:      Optional[Variable]     = Relationship(back_populates="measurements")
@@ -608,19 +625,22 @@ class MeasurementBase(SQLModel):
     id_variable:      int
 
 class MeasurementCreate(MeasurementBase):
-    pass
+    if not IS_CLOUD:
+        is_synced: Optional[bool] = False
 
 class MeasurementRead(MeasurementBase):
     id_measurement: int
     collected_at:   Optional[datetime] = None
-    is_synced:      bool               = False
+    if not IS_CLOUD:
+        is_synced:      bool               = False
 
 class MeasurementUpdate(SQLModel):
     collected_at:     Optional[datetime] = None
     value:            Optional[float]    = None
     id_device_sensor: Optional[int]      = None
     id_variable:      Optional[int]      = None
-    is_synced:        Optional[bool]     = None
+    if not IS_CLOUD:
+        is_synced:        Optional[bool]     = None
 
 
 # -------------------- CULTIVATION PHASE --------------------
@@ -691,7 +711,8 @@ class Photo(SQLModel, table=True):
     file_size_bytes:    Optional[int]  = Field(default=None)
     width:              Optional[int]  = Field(default=None)
     height:             Optional[int]  = Field(default=None)
-    is_synced:          bool           = Field(default=False, description="False until uploaded to Supabase Storage")
+    if not IS_CLOUD:
+        is_synced:          bool           = Field(default=False, description="False until uploaded to Supabase Storage")
 
     device:          Optional[Device]         = Relationship(back_populates="photos")
     device_actuator: Optional[DeviceActuator] = Relationship(back_populates="photos")
@@ -710,18 +731,21 @@ class PhotoBase(SQLModel):
     height:             Optional[int]      = None
 
 class PhotoCreate(PhotoBase):
-    pass
+    if not IS_CLOUD:
+        is_synced: Optional[bool] = False
 
 class PhotoRead(PhotoBase):
     id_photo:  int
-    is_synced: bool = False
+    if not IS_CLOUD:
+        is_synced: bool = False
 
 class PhotoUpdate(SQLModel):
     cloud_url:       Optional[str]  = None
     file_size_bytes: Optional[int]  = None
     width:           Optional[int]  = None
     height:          Optional[int]  = None
-    is_synced:       Optional[bool] = None
+    if not IS_CLOUD:
+        is_synced:       Optional[bool] = None
 
 
 # -------------------- ACTUATOR LOG --------------------
