@@ -362,10 +362,12 @@ class DeviceAdminUpdate(SQLModel):
     id_user:     Optional[uuid.UUID]  = None
     if IS_CLOUD:
         tailscale_ip: Optional[str]  = None
+        last_seen_at: Optional[datetime] = None
+    
 
 class DeviceUpdate(DeviceAdminUpdate):
     if not IS_CLOUD:
-        is_dirty:    Optional[bool]       = None
+        is_dirty: Optional[bool] = None
 
 
 # -------------------- DEVICE SENSOR --------------------
