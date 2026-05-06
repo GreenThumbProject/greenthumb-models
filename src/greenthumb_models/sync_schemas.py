@@ -90,12 +90,14 @@ class ThresholdConfig(BaseModel):
     # True  → "All Phases" sentinel (growth_phase.is_default = TRUE)
     # False → phase-specific threshold
     is_default_phase:   bool
-    min_value:          Optional[float] = None
-    max_value:          Optional[float] = None
-    target_value:       Optional[float] = None
+    min_value:          Optional[float]    = None
+    max_value:          Optional[float]    = None
+    target_value:       Optional[float]    = None
     # None = monitoring-only (no actuator wired up yet)
-    id_actuator_action: Optional[int]   = None
-    is_active:          bool            = True
+    id_actuator_action: Optional[int]      = None
+    is_active:          bool               = True
+    # Used for last-write-wins conflict resolution on local-changes sync
+    updated_at:         Optional[datetime] = None
 
 
 # =============================================================================
