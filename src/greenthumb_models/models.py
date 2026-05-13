@@ -355,11 +355,12 @@ class DeviceAdminRead(DeviceRead):
         tailscale_ip: Optional[str]      = None
 
 class DeviceAdminUpdate(SQLModel):
-    name:        Optional[str]       = None
-    mac_address: Optional[str]       = None
-    location:    Optional[str]       = None
-    device_mode: Optional[DeviceMode] = None
-    id_user:     Optional[uuid.UUID]  = None
+    name:         Optional[str]       = None
+    mac_address:  Optional[str]       = None
+    location:     Optional[str]       = None
+    device_mode:  Optional[DeviceMode] = None
+    id_user:      Optional[uuid.UUID]  = None
+    device_token: Optional[str]       = None
     if IS_CLOUD:
         tailscale_ip: Optional[str]  = None
         last_seen_at: Optional[datetime] = None
