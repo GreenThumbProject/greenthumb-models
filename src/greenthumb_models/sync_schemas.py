@@ -21,7 +21,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # =============================================================================
@@ -117,6 +117,31 @@ class ActivePhaseInfo(BaseModel):
 
 
 # =============================================================================
+# FULL SYNC PAYLOAD  (catalog + raw Tier 2 for local DB hydration)
+# =============================================================================
+
+class SyncCatalog(BaseModel):
+    """Tier 1 global catalog data. Cloud is source of truth — always overwrite."""
+    units:               List[dict] = []
+    variables:           List[dict] = []
+    plant_species:       List[dict] = []
+    growth_phases:       List[dict] = []
+    sensor_models:       List[dict] = []
+    actuator_models:     List[dict] = []
+    sensor_capabilities: List[dict] = []
+    species_thresholds:  List[dict] = []
+
+
+class SyncTier2(BaseModel):
+    """Raw Tier 2 device-config records including updated_at for last-write-wins."""
+    device:           Optional[dict] = None
+    device_sensors:   List[dict]     = []
+    device_actuators: List[dict]     = []
+    cultivations:     List[dict]     = []
+    thresholds:       List[dict]     = []
+
+
+# =============================================================================
 # DEVICE CONFIG  (top-level DTO)
 # =============================================================================
 
@@ -138,3 +163,15 @@ class DeviceConfig(BaseModel):
     thresholds:   List[ThresholdConfig]
     # None if no active cultivation phase exists
     active_phase: Optional[ActivePhaseInfo] = None
+
+
+class FullSyncPayload(DeviceConfig):
+    """DeviceConfig extended with raw DB data so the Pi can hydrate its local DB.
+
+    The Pi validates the top-level fields as a DeviceConfig (for hardware init)
+    and separately reads ``catalog`` and ``raw_tier2`` to upsert local DB tables.
+    Pydantic ignores extra fields by default, so existing callers that only
+    validate a DeviceConfig continue to work unchanged.
+    """
+    catalog:   SyncCatalog = Field(default_factory=SyncCatalog)
+    raw_tier2: SyncTier2   = Field(default_factory=SyncTier2)
