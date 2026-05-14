@@ -231,7 +231,7 @@ class SensorModel(SQLModel, table=True):
     device_sensors: List["DeviceSensor"]    = Relationship(back_populates="sensor_model")
     capabilities:   List["SensorCapability"] = Relationship(
         back_populates="sensor_model",
-        sa_relationship_kwargs={"passive_deletes": True},
+        sa_relationship_kwargs={"cascade": "all,delete-orphan"},
     )
 
 
