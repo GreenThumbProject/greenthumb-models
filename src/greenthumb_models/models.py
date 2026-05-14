@@ -151,8 +151,9 @@ class PlantSpecies(SQLModel, table=True):
     name:             str            = Field(description="Common name")
     scientific_name:  Optional[str]  = Field(default=None)
 
-    cultivations:  List["Cultivation"]  = Relationship(back_populates="plant_species")
-    growth_phases: List["GrowthPhase"]  = Relationship(back_populates="plant_species")
+    cultivations:       List["Cultivation"]       = Relationship(back_populates="plant_species")
+    growth_phases:      List["GrowthPhase"]       = Relationship(back_populates="plant_species")
+    species_thresholds: List["SpeciesThreshold"]  = Relationship(back_populates="plant_species")
 
 
 class PlantSpeciesBase(SQLModel):
@@ -228,7 +229,10 @@ class SensorModel(SQLModel, table=True):
     manufacturer:    Optional[str]  = Field(default=None)
 
     device_sensors: List["DeviceSensor"]    = Relationship(back_populates="sensor_model")
-    capabilities:   List["SensorCapability"] = Relationship(back_populates="sensor_model")
+    capabilities:   List["SensorCapability"] = Relationship(
+        back_populates="sensor_model",
+        sa_relationship_kwargs={"passive_deletes": True},
+    )
 
 
 class SensorModelBase(SQLModel):
@@ -433,7 +437,7 @@ class SensorCapabilityBase(SQLModel):
     id_variable:     int
     precision:       Optional[float] = None
     accuracy:        Optional[float] = None
-    min_range:       Optional[float] = None
+    min_range:       Optional[float] = Field(default=0)
     max_range:       Optional[float] = None
 
 class SensorCapabilityCreate(SensorCapabilityBase):
@@ -549,40 +553,46 @@ class Threshold(SQLModel, table=True):
     Pi-mutable fields: min_value, max_value, target_value, is_active.
     Set is_dirty=True on any local write; cleared after sync.
 
+    id_species_threshold records which SpeciesThreshold template this row was
+    auto-copied from when the cultivation began (NULL = created manually).
+
     Table: threshold.
     """
     __table_args__ = (
         UniqueConstraint("id_cultivation", "id_variable", "id_growth_phase", name="uix_threshold"),
     )
 
-    id_threshold:      Optional[int] = Field(default=None, primary_key=True)
-    id_cultivation:    int            = Field(foreign_key="cultivation.id_cultivation")
-    id_variable:       int            = Field(foreign_key="variable.id_variable")
-    id_growth_phase:   int            = Field(foreign_key="growth_phase.id_growth_phase", description="References 'All Phases' (is_default=True) for cultivation-wide thresholds")
-    min_value:         Optional[float] = Field(default=None)
-    max_value:         Optional[float] = Field(default=None)
-    target_value:      Optional[float] = Field(default=None)
-    id_actuator_action: Optional[int]  = Field(default=None, foreign_key="device_actuator.id_device_actuator", description="NULL = monitoring-only")
-    is_active:         bool            = Field(default=True)
-    updated_at:        Optional[datetime] = Field(default_factory=datetime.now)
+    id_threshold:        Optional[int] = Field(default=None, primary_key=True)
+    id_cultivation:      int            = Field(foreign_key="cultivation.id_cultivation")
+    id_variable:         int            = Field(foreign_key="variable.id_variable")
+    id_growth_phase:     int            = Field(foreign_key="growth_phase.id_growth_phase", description="References 'All Phases' (is_default=True) for cultivation-wide thresholds")
+    id_species_threshold: Optional[int] = Field(default=None, foreign_key="species_threshold.id_species_threshold", description="Template this row was copied from; NULL = manually created")
+    min_value:           Optional[float] = Field(default=None)
+    max_value:           Optional[float] = Field(default=None)
+    target_value:        Optional[float] = Field(default=None)
+    id_actuator_action:  Optional[int]   = Field(default=None, foreign_key="device_actuator.id_device_actuator", description="NULL = monitoring-only")
+    is_active:           bool            = Field(default=True)
+    updated_at:          Optional[datetime] = Field(default_factory=datetime.now)
     if not IS_CLOUD:
-        is_dirty:          bool            = Field(default=False, description="True when a Pi-mutable field was changed locally and not yet synced")
+        is_dirty:            bool            = Field(default=False, description="True when a Pi-mutable field was changed locally and not yet synced")
 
-    cultivation:    Optional[Cultivation]    = Relationship(back_populates="thresholds")
-    variable:       Optional[Variable]       = Relationship()
-    growth_phase:   Optional[GrowthPhase]    = Relationship(back_populates="thresholds")
-    actuator_action: Optional[DeviceActuator] = Relationship()
+    cultivation:      Optional[Cultivation]      = Relationship(back_populates="thresholds")
+    variable:         Optional[Variable]          = Relationship()
+    growth_phase:     Optional[GrowthPhase]       = Relationship(back_populates="thresholds")
+    actuator_action:  Optional[DeviceActuator]    = Relationship()
+    species_threshold: Optional["SpeciesThreshold"] = Relationship(back_populates="thresholds")
 
 
 class ThresholdBase(SQLModel):
-    id_cultivation:     int
-    id_variable:        int
-    id_growth_phase:    int
-    min_value:          Optional[float] = None
-    max_value:          Optional[float] = None
-    target_value:       Optional[float] = None
-    id_actuator_action: Optional[int]   = None
-    is_active:          bool            = True
+    id_cultivation:      int
+    id_variable:         int
+    id_growth_phase:     int
+    id_species_threshold: Optional[int]   = None
+    min_value:           Optional[float]  = None
+    max_value:           Optional[float]  = None
+    target_value:        Optional[float]  = None
+    id_actuator_action:  Optional[int]    = None
+    is_active:           bool             = True
 
 class ThresholdCreate(ThresholdBase):
     if not IS_CLOUD:
@@ -603,6 +613,47 @@ class ThresholdUpdate(SQLModel):
     is_active:          Optional[bool]  = None
     if not IS_CLOUD:
         is_dirty: Optional[bool] = None
+
+
+# -------------------- SPECIES THRESHOLD --------------------
+
+class SpeciesThresholdBase(SQLModel):
+    id_plant_species: int            = Field(foreign_key="plant_species.id_plant_species")
+    id_variable:      int            = Field(foreign_key="variable.id_variable")
+    id_growth_phase:  int            = Field(foreign_key="growth_phase.id_growth_phase")
+    min_value:        Optional[float] = Field(default=None)
+    max_value:        Optional[float] = Field(default=None)
+    target_value:     Optional[float] = Field(default=None)
+    source:           str             = Field(default="manual", description="'manual' | 'ml' | 'community'")
+
+
+class SpeciesThreshold(SpeciesThresholdBase, table=True):
+    """Species-level threshold templates. Auto-copied as Threshold rows when a cultivation begins.
+
+    Table: species_threshold.
+    """
+    __tablename__ = "species_threshold"
+    __table_args__ = (
+        UniqueConstraint("id_plant_species", "id_variable", "id_growth_phase", name="uix_species_threshold"),
+    )
+
+    id_species_threshold: Optional[int] = Field(default=None, primary_key=True)
+
+    plant_species: Optional[PlantSpecies] = Relationship(back_populates="species_thresholds")
+    thresholds:    List["Threshold"]       = Relationship(back_populates="species_threshold")
+
+
+class SpeciesThresholdCreate(SpeciesThresholdBase):
+    pass
+
+class SpeciesThresholdRead(SpeciesThresholdBase):
+    id_species_threshold: int
+
+class SpeciesThresholdUpdate(SQLModel):
+    min_value:    Optional[float] = None
+    max_value:    Optional[float] = None
+    target_value: Optional[float] = None
+    source:       Optional[str]   = None
 
 
 # =============================================================================
@@ -839,7 +890,7 @@ for cls in [
     AppUser, Unit, Variable, PlantSpecies, GrowthPhase,
     SensorModel, ActuatorModel,
     Device, DeviceSensor, SensorCapability, DeviceActuator,
-    Cultivation, Threshold,
+    Cultivation, Threshold, SpeciesThreshold,
     Measurement, CultivationPhase, Photo, ActuatorLog,
     SyncMetadata,
     # Create/Read/Update schemas
@@ -856,6 +907,7 @@ for cls in [
     DeviceActuatorCreate, DeviceActuatorRead, DeviceActuatorUpdate,
     CultivationCreate, CultivationRead, CultivationUpdate,
     ThresholdCreate, ThresholdRead, ThresholdUpdate,
+    SpeciesThresholdCreate, SpeciesThresholdRead, SpeciesThresholdUpdate,
     MeasurementCreate, MeasurementRead, MeasurementUpdate,
     CultivationPhaseCreate, CultivationPhaseRead, CultivationPhaseUpdate,
     PhotoCreate, PhotoRead, PhotoUpdate,
