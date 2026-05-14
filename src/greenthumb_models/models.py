@@ -227,6 +227,7 @@ class SensorModel(SQLModel, table=True):
     id_sensor_model: Optional[int] = Field(default=None, primary_key=True)
     model_name:      str            = Field(description="Model identifier used for registry lookup")
     manufacturer:    Optional[str]  = Field(default=None)
+    connection_type: Optional[str]  = Field(default=None, description="I2C, Analog, Digital, UART, SPI")
 
     device_sensors: List["DeviceSensor"]    = Relationship(back_populates="sensor_model")
     capabilities:   List["SensorCapability"] = Relationship(
@@ -236,8 +237,9 @@ class SensorModel(SQLModel, table=True):
 
 
 class SensorModelBase(SQLModel):
-    model_name:   str
-    manufacturer: Optional[str] = None
+    model_name:      str
+    manufacturer:    Optional[str] = None
+    connection_type: Optional[str] = None
 
 class SensorModelCreate(SensorModelBase):
     pass
@@ -246,8 +248,9 @@ class SensorModelRead(SensorModelBase):
     id_sensor_model: int
 
 class SensorModelUpdate(SQLModel):
-    model_name:   Optional[str] = None
-    manufacturer: Optional[str] = None
+    model_name:      Optional[str] = None
+    manufacturer:    Optional[str] = None
+    connection_type: Optional[str] = None
 
 
 # -------------------- ACTUATOR MODEL --------------------
@@ -256,11 +259,14 @@ class ActuatorModel(SQLModel, table=True):
     """Hardware actuator type (RGB_LED, CAMERA, …). Table: actuator_model."""
     __tablename__ = "actuator_model"
 
-    id_actuator_model: Optional[int] = Field(default=None, primary_key=True)
-    model_name:        str            = Field(description="Human-readable model name")
-    actuator_type:     str            = Field(description="Registry key, e.g. 'RGB_LED'")
-    manufacturer:      Optional[str]  = Field(default=None)
-    model_config_json: dict           = Field(
+    id_actuator_model: Optional[int]   = Field(default=None, primary_key=True)
+    model_name:        str             = Field(description="Human-readable model name")
+    actuator_type:     str             = Field(description="Registry key, e.g. 'RGB_LED'")
+    manufacturer:      Optional[str]   = Field(default=None)
+    connection_type:   Optional[str]   = Field(default=None, description="USB, 3PIN, I2C, etc.")
+    power_w:           Optional[float] = Field(default=None, description="Power consumption in watts")
+    voltage_v:         Optional[float] = Field(default=None, description="Operating voltage in volts")
+    model_config_json: dict            = Field(
         default_factory=dict,
         sa_column=Column(JSON().with_variant(JSONB, "postgresql"), nullable=False, default=dict),
         description="Model-level hardware specs (voltage, max resolution, etc.)"
@@ -272,8 +278,11 @@ class ActuatorModel(SQLModel, table=True):
 class ActuatorModelBase(SQLModel):
     actuator_type:     str
     model_name:        str
-    manufacturer:      Optional[str]  = None
-    model_config_json: Optional[dict] = None
+    manufacturer:      Optional[str]   = None
+    connection_type:   Optional[str]   = None
+    power_w:           Optional[float] = None
+    voltage_v:         Optional[float] = None
+    model_config_json: Optional[dict]  = None
 
 class ActuatorModelCreate(ActuatorModelBase):
     pass
@@ -282,10 +291,13 @@ class ActuatorModelRead(ActuatorModelBase):
     id_actuator_model: int
 
 class ActuatorModelUpdate(SQLModel):
-    actuator_type:     Optional[str]  = None
-    model_name:        Optional[str]  = None
-    manufacturer:      Optional[str]  = None
-    model_config_json: Optional[dict] = None
+    actuator_type:     Optional[str]   = None
+    model_name:        Optional[str]   = None
+    manufacturer:      Optional[str]   = None
+    connection_type:   Optional[str]   = None
+    power_w:           Optional[float] = None
+    voltage_v:         Optional[float] = None
+    model_config_json: Optional[dict]  = None
 
 
 # =============================================================================
